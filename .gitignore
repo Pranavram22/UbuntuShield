@@ -1,0 +1,13 @@
+# Binaries
+linux-hardener
+u-harden
+ubuntu-shield
+
+# Reports
+reports/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
