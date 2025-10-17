@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lynis Security Dashboard</title>
+    
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .last-updated {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .panel-header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .loading-spinner {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="display-6 mb-0">
+                            <i class="fas fa-shield-alt text-primary me-3"></i>
+                            Lynis Security Dashboard
+                        </h1>
+                        <p class="text-muted mb-0">System Security Audit & Hardening</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="refresh-indicator">
+                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <button id="refreshBtn" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="last-updated mt-2" id="lastUpdated">
+                            Last updated: Never
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row g-4">
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="panel-header">
+                            <h5 class="panel-title">
+                                <i class="fas fa-chart-pie text-success me-2"></i>
+                                Security Compliance
+                            </h5>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="complianceChart"></canvas>
+                        </div>
+                        <div class="text-center mt-3">
+                            <h4 id="hardeningIndex" class="text-success mb-0">--</h4>
+                            <small class="text-muted">Hardening Index</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="col-lg-2 col-md-3 col-sm-6">
+                <div class="card h-100">
+                    <div class="card-body stat-card">
+                        <div class="panel-header">
+                            <h6 class="panel-title">
+                                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                Warnings
+                            </h6>
+                        </div>
+                        <p id="warningsCount" class="stat-number text-warning">--</p>
+                        <p class="stat-label mb-0">Issues Found</p>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="col-lg-2 col-md-3 col-sm-6">
+                <div class="card h-100">
+                    <div class="card-body stat-card">
+                        <div class="panel-header">
+                            <h6 class="panel-title">
+                                <i class="fas fa-lightbulb text-info me-2"></i>
+                                Suggestions
+                            </h6>
+                        </div>
+                        <p id="suggestionsCount" class="stat-number text-info">--</p>
+                        <p class="stat-label mb-0">Improvements</p>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="col-lg-4 col-md-12">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="panel-header">
+                            <h5 class="panel-title">
+                                <i class="fas fa-tachometer-alt text-primary me-2"></i>
+                                Quick Stats
+                            </h5>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 id="testsPerformed" class="mb-1 text-primary">--</h5>
+                                    <small class="text-muted">Tests Performed</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 id="pluginsEnabled" class="mb-1 text-secondary">--</h5>
+                                    <small class="text-muted">Plugins Enabled</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 id="lynisVersion" class="mb-1 text-success">--</h5>
+                                    <small class="text-muted">Lynis Version</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <h5 id="vulnerablePackages" class="mb-1 text-danger">--</h5>
+                                    <small class="text-muted">Vulnerable Packages</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="panel-header">
+                            <h5 class="panel-title">
+                                <i class="fas fa-server text-secondary me-2"></i>
+                                System Information
+                            </h5>
+                        </div>
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <tbody id="systemInfoTable">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">
+                                            <i class="fas fa-spinner fa-spin me-2"></i>
+                                            Loading system information...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let complianceChart = null;
+        let refreshInterval = null;
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            startAutoRefresh();
+            
+            
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                loadDashboardData();
+            });
+        });
+
+        
+        async function loadDashboardData() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/report');
+                const data = await response.json();
+                
+                if (data && data.data) {
+                    updateDashboard(data.data);
+                    updateLastUpdated();
+                } else {
+                    console.error('Invalid data format received');
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showError('Failed to load dashboard data');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        
+        function updateDashboard(data) {
+            
+            updateComplianceChart(data.hardening_index || '0');
+            
+            
+            document.getElementById('warningsCount').textContent = data.warnings || '0';
+            document.getElementById('suggestionsCount').textContent = data.suggestions || '0';
+            document.getElementById('hardeningIndex').textContent = (data.hardening_index || '0') + '%';
+            
+            
+            document.getElementById('testsPerformed').textContent = data.tests_performed || '0';
+            document.getElementById('pluginsEnabled').textContent = data.plugins_enabled || '0';
+            document.getElementById('lynisVersion').textContent = data.lynis_version || 'N/A';
+            document.getElementById('vulnerablePackages').textContent = data.vulnerable_packages || '0';
+            
+            
+            updateSystemInfoTable(data);
+        }
+
+        
+        function updateComplianceChart(hardeningIndex) {
+            const ctx = document.getElementById('complianceChart').getContext('2d');
+            const index = parseInt(hardeningIndex) || 0;
+            const remaining = 100 - index;
+            
+            if (complianceChart) {
+                complianceChart.destroy();
+            }
+            
+            complianceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hardened', 'Remaining'],
+                    datasets: [{
+                        data: [index, remaining],
+                        backgroundColor: [
+                            index >= 80 ? '#28a745' : index >= 60 ? '#ffc107' : '#dc3545',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0,
+                        cutout: '70%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        
+        function updateSystemInfoTable(data) {
+            const tbody = document.getElementById('systemInfoTable');
+            tbody.innerHTML = '';
+            
+            
+            const importantFields = {
+                'hostname': 'Hostname',
+                'os': 'Operating System',
+                'os_name': 'OS Name',
+                'os_version': 'OS Version',
+                'kernel_version': 'Kernel Version',
+                'uptime': 'System Uptime',
+                'memory_total': 'Total Memory',
+                'cpu_cores': 'CPU Cores',
+                'network_interfaces': 'Network Interfaces',
+                'firewall_software': 'Firewall Software',
+                'antivirus_software': 'Antivirus Software',
+                'compiler_installed': 'Compiler Installed'
+            };
+            
+            let row = null;
+            let cellCount = 0;
+            
+            Object.entries(importantFields).forEach(([key, label]) => {
+                if (cellCount % 2 === 0) {
+                    row = document.createElement('tr');
+                    tbody.appendChild(row);
+                }
+                
+                const cell = document.createElement('td');
+                cell.innerHTML = `<strong>${label}:</strong> ${data[key] || 'N/A'}`;
+                cell.className = 'border-0 py-2';
+                row.appendChild(cell);
+                
+                cellCount++;
+            });
+            
+            
+            if (cellCount % 2 !== 0) {
+                const emptyCell = document.createElement('td');
+                emptyCell.className = 'border-0';
+                row.appendChild(emptyCell);
+            }
+        }
+
+        
+        function showLoading(show) {
+            const spinner = document.querySelector('.loading-spinner');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            if (show) {
+                spinner.style.display = 'inline-block';
+                refreshBtn.disabled = true;
+            } else {
+                spinner.style.display = 'none';
+                refreshBtn.disabled = false;
+            }
+        }
+
+        
+        function updateLastUpdated() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('lastUpdated').textContent = `Last updated: ${timeString}`;
+        }
+
+        
+        function showError(message) {
+            
+            console.error(message);
+        }
+
+        
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            
+            refreshInterval = setInterval(function() {
+                loadDashboardData();
+            }, 60000); 
+        }
+
+        
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (complianceChart) {
+                complianceChart.destroy();
+            }
+        });
+    </script>
+</body>
+</html>

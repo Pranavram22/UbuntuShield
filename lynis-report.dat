@@ -1,0 +1,107 @@
+# Lynis Report Data
+# This file contains the scanning results
+#
+# Time of scan: Sun Sep 22 10:00:00 2025
+# Lynis version: 3.0.8
+# Operating system: Linux
+# OS version: Ubuntu 22.04 LTS
+# Platform: x86_64
+#
+# Lynis modules:
+# - Auditing [V]
+# - System tools [V]
+# - Plugins [V]
+
+# General
+report_version_major=3
+report_version_minor=0
+report_datetime_start=20250922 100000
+report_datetime_end=20250922 101500
+hostid=550e8400e29b41d4a71644667
+hostid2=macbook-air-ubuntu
+
+# System
+os=Linux
+os_name=Ubuntu
+os_version=22.04
+linux_version=Ubuntu 22.04.3 LTS
+hostname=security-test-system
+domainname=local
+uptime_in_seconds=432000
+uptime_in_days=5
+kernel_version=5.15.0-72-generic
+memory_total=16777216
+cpu_name=Intel Core i7
+hardware_platform=x86_64
+
+# Network
+network_interface_eth0=active
+network_ipv4_address=192.168.1.100
+network_ipv6_address=fe80::1234:5678:9abc:def0
+default_gateway=192.168.1.1
+nameserver=1.1.1.1,8.8.8.8
+
+# SSH
+ssh_daemon_running=1
+ssh_daemon_status=running
+ssh_daemon_port=22
+ssh_daemon_options=PermitRootLogin yes
+ssh_daemon_version=OpenSSH_8.9p1
+
+# Firewall
+firewall_software=ufw
+firewall_status=active
+iptables_status=active
+
+# Authentication
+password_max_days=99999
+password_min_days=0
+login_shells=/bin/bash,/bin/sh,/bin/zsh
+available_shells=/bin/bash,/bin/sh,/bin/zsh,/bin/dash
+
+# Software
+software_package_tools=apt,dpkg
+package_manager=apt
+vulnerable_packages_found=3
+outdated_packages=12
+
+# Logging
+logging_daemon=rsyslog
+syslog_daemon_present=1
+
+# Services
+running_service_ssh=1
+running_service_apache2=0
+running_service_nginx=0
+running_service_mysql=0
+
+# File systems
+file_systems_ext4=1
+file_systems_proc=1
+file_systems_sys=1
+
+# Tests and scoring
+lynis_tests_done=245
+tests_performed=245
+tests_skipped=12
+warnings=8
+suggestions=15
+hardening_index=67
+lynis_update_available=0
+
+# Plugin results
+malware_scanner_installed=1
+backup_software_available=1
+
+# Security findings
+security_issue_ssh_root_login=1
+security_issue_firewall_disabled=1
+security_issue_outdated_packages=1
+security_issue_weak_passwords=0
+security_issue_open_ports=2
+
+# Additional system info
+boot_loader=GRUB2
+compiler_installed=1
+development_tools_installed=1
+users_logged_in=2
