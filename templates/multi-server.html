@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Server Dashboard - UbuntuShield</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+
+        .header {
+            padding: 30px;
+            background: rgba(17, 17, 17, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #333333;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
+            color: #00ff88;
+            font-size: 2rem;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .server-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .server-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .server-card.active::before {
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+        }
+
+        .server-card.warning::before {
+            background: linear-gradient(90deg, #ffa502, #ff7f00);
+        }
+
+        .server-card.offline::before {
+            background: linear-gradient(90deg, #ff4757, #ff3742);
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .server-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .server-ip {
+            color: #888;
+            font-size: 0.9rem;
+            font-family: 'SF Mono', monospace;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-warning {
+            background: rgba(255, 165, 2, 0.2);
+            color: #ffa502;
+            border: 1px solid rgba(255, 165, 2, 0.3);
+        }
+
+        .status-offline {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            border: 1px solid rgba(255, 71, 87, 0.3);
+        }
+
+        .server-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .metric-value.warning {
+            color: #ffa502;
+        }
+
+        .metric-value.danger {
+            color: #ff4757;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 5px;
+        }
+
+        .server-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 80px 20px;
+            color: #888;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-servers {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .no-servers-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .no-servers h2 {
+            color: #fff;
+            margin-bottom: 15px;
+        }
+
+        .no-servers p {
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 15px 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .refresh-indicator.show {
+            opacity: 1;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .servers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-stats {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1 class="header-title">🛡️ Multi-Server Dashboard</h1>
+            <div class="header-stats" id="headerStats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalServers">0</div>
+                    <div class="stat-label">Servers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgScore">0%</div>
+                    <div class="stat-label">Avg Score</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="activeServers">0</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container -->
+    <div class="container">
+        <!-- Loading State -->
+        <div id="loadingState" class="loading">
+            <div class="spinner"></div>
+            <h3>Loading Servers...</h3>
+            <p>Fetching data from all monitored servers</p>
+        </div>
+
+        <!-- Servers Grid -->
+        <div id="serversGrid" class="servers-grid" style="display: none;"></div>
+
+        <!-- No Servers State -->
+        <div id="noServersState" class="no-servers" style="display: none;">
+            <div class="no-servers-icon">🖥️</div>
+            <h2>No Servers Registered</h2>
+            <p>Install the UbuntuShield agent on your servers to start monitoring.</p>
+            <button class="btn" onclick="showInstructions()">📚 View Installation Instructions</button>
+        </div>
+    </div>
+
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <div class="pulse-dot"></div>
+        <span>Live Updates Active</span>
+    </div>
+
+    <script>
+        let updateInterval = null;
+        let serversData = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Multi-Server Dashboard initializing...');
+            loadServers();
+            startAutoRefresh();
+        });
+
+        // Load servers data
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/servers');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch servers');
+                }
+
+                const data = await response.json();
+                serversData = data.servers || [];
+                const stats = data.stats || {};
+
+                if (serversData.length === 0) {
+                    showNoServers();
+                } else {
+                    renderServers(serversData, stats);
+                }
+            } catch (error) {
+                console.error('Error loading servers:', error);
+                showNoServers();
+            }
+        }
+
+        // Render servers grid
+        function renderServers(servers, stats) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('noServersState').style.display = 'none';
+            document.getElementById('serversGrid').style.display = 'grid';
+
+            // Update header stats
+            document.getElementById('totalServers').textContent = stats.total_servers || 0;
+            document.getElementById('avgScore').textContent = Math.round(stats.avg_score || 0) + '%';
+            document.getElementById('activeServers').textContent = stats.active || 0;
+
+            // Render server cards
+            const grid = document.getElementById('serversGrid');
+            grid.innerHTML = servers.map(server => createServerCard(server)).join('');
+
+            // Show refresh indicator
+            const indicator = document.getElementById('refreshIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => indicator.classList.remove('show'), 2000);
+        }
+
+        // Create server card HTML
+        function createServerCard(server) {
+            const metrics = server.latest_metrics || {};
+            const score = parseInt(metrics.hardening_index) || 0;
+            const warnings = parseInt(metrics.warnings) || 0;
+            const tests = parseInt(metrics.tests_performed) || 0;
+
+            const scoreClass = score >= 80 ? '' : score >= 60 ? 'warning' : 'danger';
+            const warningClass = warnings <= 5 ? '' : warnings <= 15 ? 'warning' : 'danger';
+
+            const lastSeen = timeSince(new Date(server.last_heartbeat));
+            const statusClass = server.status || 'offline';
+
+            return `
+                <div class="server-card ${statusClass}" onclick="viewServerDetails('${server.id}')">
+                    <div class="server-header">
+                        <div>
+                            <div class="server-name">${server.hostname || 'Unknown Server'}</div>
+                            <div class="server-ip">${server.ip_address || 'No IP'}</div>
+                        </div>
+                        <span class="status-badge status-${statusClass}">${statusClass}</span>
+                    </div>
+
+                    <div class="server-metrics">
+                        <div class="metric">
+                            <div class="metric-value ${scoreClass}">${score}%</div>
+                            <div class="metric-label">Security Score</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value ${warningClass}">${warnings}</div>
+                            <div class="metric-label">Warnings</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${tests}</div>
+                            <div class="metric-label">Tests</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${server.os || 'Unknown'}</div>
+                            <div class="metric-label">OS</div>
+                        </div>
+                    </div>
+
+                    <div class="server-info">
+                        <div class="info-row">
+                            <span>Last Seen:</span>
+                            <span>${lastSeen}</span>
+                        </div>
+                        <div class="info-row">
+                            <span>Agent Version:</span>
+                            <span>${server.agent_version || 'Unknown'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Show no servers state
+        function showNoServers() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('serversGrid').style.display = 'none';
+            document.getElementById('noServersState').style.display = 'block';
+        }
+
+        // View server details
+        function viewServerDetails(serverId) {
+            window.location.href = `/?server=${serverId}`;
+        }
+
+        // Show installation instructions
+        function showInstructions() {
+            alert('Installation Instructions:\n\n' +
+                  '1. Download agent:\n' +
+                  '   curl -O https://your-server/ubuntushield-agent\n\n' +
+                  '2. Register agent:\n' +
+                  '   ./ubuntushield-agent register http://your-dashboard:5179\n\n' +
+                  '3. Start agent:\n' +
+                  '   ./ubuntushield-agent start\n\n' +
+                  'Your server will appear here within 60 seconds!');
+        }
+
+        // Auto refresh every 30 seconds
+        function startAutoRefresh() {
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(loadServers, 30000);
+        }
+
+        // Helper: Time since
+        function timeSince(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            return Math.floor(seconds / 86400) + 'd ago';
+        }
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) clearInterval(updateInterval);
+        });
+    </script>
+</body>
+</html>
+

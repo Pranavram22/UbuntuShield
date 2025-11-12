@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-11-12T12:12:45.471078+05:30",
+  "hardening_index": "58",
+  "warnings": "",
+  "tests_performed": "167",
+  "suggestions": 1,
+  "compliance_scores": {
+    "cis_level1": 33.33333333333333,
+    "cis_level2": 25,
+    "iso27001": 0,
+    "nist": 0,
+    "pcidss": 0
+  },
+  "key_metrics": {
+    "hostname": "MacBook-Air",
+    "os": "macOS"
+  },
+  "full_data_hash": "",
+  "compressed": false
+}

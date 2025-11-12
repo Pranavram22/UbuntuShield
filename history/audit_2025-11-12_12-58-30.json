@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-11-12T12:58:30.985751+05:30",
+  "hardening_index": "67",
+  "warnings": "8",
+  "tests_performed": "245",
+  "suggestions": 1,
+  "compliance_scores": {
+    "cis_level1": 66.66666666666666,
+    "cis_level2": 75,
+    "iso27001": 50,
+    "nist": 50,
+    "pcidss": 100
+  },
+  "key_metrics": {
+    "firewall_software": "ufw",
+    "firewall_status": "active",
+    "hostname": "security-test-system",
+    "kernel_version": "5.15.0-72-generic",
+    "logging_daemon": "rsyslog",
+    "os": "Linux",
+    "ssh_daemon_status": "running"
+  },
+  "full_data_hash": "",
+  "compressed": false
+}

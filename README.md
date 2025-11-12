@@ -33,6 +33,11 @@ A professional, real-time security dashboard for Linux system hardening analysis
 - **One-Click Audits** - Run new security scans directly from dashboard
 - **Status Indicators** - Real-time system health monitoring
 - **Professional UI** - Enterprise-grade interface design
+- **📈 Historical Tracking** - Track security improvements over time
+- **⏰ Automated Audits** - Schedule automatic daily/weekly/monthly scans
+- **📊 Trend Analysis** - Visualize security metrics across 7d/30d/90d periods
+- **💾 Smart Storage** - Auto-compression & cleanup (~2.5 MB/year)
+- **🔄 Zero Bandwidth** - 100% local processing, no external calls
 
 ## 🏗️ Architecture
 
@@ -98,11 +103,28 @@ If you don't have a Lynis report yet:
 
 ## 📡 API Endpoints
 
+### Core Endpoints
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Main dashboard interface |
 | `/report` | GET | JSON security data |
 | `/run-audit` | POST | Trigger new security audit |
+| `/compliance` | GET | Compliance framework analysis |
+| `/remediate` | POST | Apply automated fixes |
+
+### 📈 Historical Tracking Endpoints (NEW!)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/history/trend?period=30d` | GET | Get trend data (7d/30d/90d) |
+| `/history/records` | GET | Get historical audit records |
+| `/history/compare` | GET | Compare current with previous audit |
+| `/history/stats` | GET | Storage usage statistics |
+
+### ⏰ Scheduler Endpoints (NEW!)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/scheduler/status` | GET | Get scheduler status |
+| `/scheduler/config` | GET/POST | Get/update scheduler configuration |
 
 ### API Response Example
 ```json
@@ -117,6 +139,20 @@ If you don't have a Lynis report yet:
     ...
   }
 }
+```
+
+### Quick API Examples
+```bash
+# Enable daily automated audits
+curl -X POST http://localhost:5179/scheduler/config \
+  -H "Content-Type: application/json" \
+  -d '{"enabled":true,"interval":"daily"}'
+
+# Get 30-day security trend
+curl http://localhost:5179/history/trend?period=30d
+
+# Compare with previous audit
+curl http://localhost:5179/history/compare
 ```
 
 ## 🎨 Screenshots
@@ -151,11 +187,19 @@ The dashboard automatically searches for Lynis reports in:
 ### Project Structure
 ```
 UbuntuShield/
-├── main.go                 # Main application server
+├── main.go                    # Main application server
+├── history.go                 # Historical tracking system (NEW!)
+├── scheduler.go               # Automated audit scheduler (NEW!)
 ├── templates/
-│   └── dashboard.html      # Dashboard interface
-├── README.md              # This file
-└── go.mod                 # Go module file
+│   └── dashboard.html         # Dashboard interface
+├── history/                   # Audit history storage (auto-created)
+│   └── audit_*.json          # Historical audit records
+├── README.md                  # This file
+├── FEATURES.md               # New features documentation (NEW!)
+├── QUICK_START.md            # Quick start guide (NEW!)
+├── IMPLEMENTATION_SUMMARY.md # Technical implementation (NEW!)
+├── test-features.sh          # Feature testing script (NEW!)
+└── go.mod                    # Go module file
 ```
 
 ### Building for Production

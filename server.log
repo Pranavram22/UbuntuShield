@@ -1,0 +1,16 @@
+2025/11/12 11:50:27 💾 History manager initialized
+2025/11/12 11:50:27 ⏰ Scheduler is disabled. Enable it in settings to run automated audits.
+2025/11/12 11:50:27 ⏰ Audit scheduler initialized
+2025/11/12 11:50:27 🌐 Server manager initialized (multi-server mode)
+🚀 Linux Hardening Dashboard starting on http://localhost:5179
+📊 Dashboard available at http://localhost:5179/
+📋 API endpoint available at http://localhost:5179/report
+🔍 Run audit endpoint available at http://localhost:5179/run-audit
+📋 Compliance endpoint available at http://localhost:5179/compliance
+🔧 Remediation endpoint available at http://localhost:5179/remediate
+📈 History trend endpoint available at http://localhost:5179/history/trend?period=30d
+⏰ Scheduler status endpoint available at http://localhost:5179/scheduler/status
+2025/11/12 11:50:47 ✅ New server registered: test-server-01 (9dd347cc5be91a7045700f71382bd6ee)
+2025/11/12 11:50:47 📊 Received metrics from test-server-01: Score=85%, Warnings=5
+2025/11/12 11:50:48 ✅ New server registered: test-server-02 (d0dbc5336ec8c554f11356d34abb7f42)
+2025/11/12 11:50:48 📊 Received metrics from test-server-02: Score=92%, Warnings=3
