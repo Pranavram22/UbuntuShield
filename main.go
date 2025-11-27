@@ -1649,6 +1649,295 @@ func analyzeCOBIT(data map[string]string) ComplianceProfile {
 }
 
 // Global instances
+// exportJSONHandler exports data as JSON
+func exportJSONHandler(w http.ResponseWriter, r *http.Request) {
+	serverID := r.URL.Query().Get("server")
+	
+	if serverID == "" || serverID == "local" {
+		// Export local system data
+		completeData := parseCompleteLynisReport()
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=lynis-report.json")
+		
+		json.NewEncoder(w).Encode(completeData)
+	} else {
+		// Export remote server data
+		server, err := serverManager.GetServer(serverID)
+		if err != nil {
+			http.Error(w, "Server not found", http.StatusNotFound)
+			return
+		}
+		
+		metrics, _ := serverManager.GetLatestMetrics(serverID)
+		
+		exportData := map[string]interface{}{
+			"server":  server,
+			"metrics": metrics,
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=server-%s.json", serverID))
+		
+		json.NewEncoder(w).Encode(exportData)
+	}
+}
+
+// exportCSVHandler exports data as CSV
+func exportCSVHandler(w http.ResponseWriter, r *http.Request) {
+	serverID := r.URL.Query().Get("server")
+	
+	w.Header().Set("Content-Type", "text/csv")
+	
+	if serverID == "" || serverID == "local" {
+		w.Header().Set("Content-Disposition", "attachment; filename=lynis-report.csv")
+		
+		completeData := parseCompleteLynisReport()
+		fields := completeData["fields"].(map[string]string)
+		
+		// Write CSV headers
+		fmt.Fprintln(w, "Field,Value")
+		
+		// Write all fields
+		for key, value := range fields {
+			// Escape commas and quotes in CSV
+			value = strings.ReplaceAll(value, "\"", "\"\"")
+			if strings.Contains(value, ",") || strings.Contains(value, "\"") {
+				value = "\"" + value + "\""
+			}
+			fmt.Fprintf(w, "%s,%s\n", key, value)
+		}
+		
+		// Add array data
+		if suggestions, ok := completeData["suggestions"].([]string); ok {
+			fmt.Fprintln(w, "\nSuggestions")
+			for i, s := range suggestions {
+				s = strings.ReplaceAll(s, "\"", "\"\"")
+				if strings.Contains(s, ",") {
+					s = "\"" + s + "\""
+				}
+				fmt.Fprintf(w, "%d,%s\n", i+1, s)
+			}
+		}
+		
+		if warnings, ok := completeData["warnings"].([]string); ok && len(warnings) > 0 {
+			fmt.Fprintln(w, "\nWarnings")
+			for i, warn := range warnings {
+				warn = strings.ReplaceAll(warn, "\"", "\"\"")
+				if strings.Contains(warn, ",") {
+					warn = "\"" + warn + "\""
+				}
+				fmt.Fprintf(w, "%d,%s\n", i+1, warn)
+			}
+		}
+	} else {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=server-%s.csv", serverID))
+		
+		servers, _ := serverManager.ListServers()
+		
+		// Write CSV headers
+		fmt.Fprintln(w, "Field,Value")
+		
+		for _, server := range servers {
+			if server.ID == serverID {
+				fmt.Fprintf(w, "ID,%s\n", server.ID)
+				fmt.Fprintf(w, "Hostname,%s\n", server.Hostname)
+				fmt.Fprintf(w, "IP Address,%s\n", server.IPAddress)
+				fmt.Fprintf(w, "OS,%s\n", server.OS)
+				fmt.Fprintf(w, "Status,%s\n", server.Status)
+				fmt.Fprintf(w, "Last Heartbeat,%s\n", server.LastHeartbeat.Format(time.RFC3339))
+				
+				metrics, _ := serverManager.GetLatestMetrics(serverID)
+				if metrics != nil {
+					fmt.Fprintf(w, "Hardening Index,%s\n", metrics.HardeningIndex)
+					fmt.Fprintf(w, "Warnings,%s\n", metrics.Warnings)
+					fmt.Fprintf(w, "Tests Performed,%s\n", metrics.TestsPerformed)
+				}
+				break
+			}
+		}
+	}
+}
+
+// exportPDFHandler exports data as PDF (simplified HTML version)
+func exportPDFHandler(w http.ResponseWriter, r *http.Request) {
+	serverID := r.URL.Query().Get("server")
+	
+	w.Header().Set("Content-Type", "text/html")
+	
+	if serverID == "" || serverID == "local" {
+		completeData := parseCompleteLynisReport()
+		fields := completeData["fields"].(map[string]string)
+		
+		// Generate print-friendly HTML
+		html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Lynis Security Report</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            color: black;
+        }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #1e40af; margin-top: 30px; border-bottom: 2px solid #93c5fd; padding-bottom: 5px; }
+        h3 { color: #1e40af; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #2563eb; color: white; }
+        tr:nth-child(even) { background-color: #f3f4f6; }
+        .metric { display: inline-block; padding: 15px; margin: 10px; background: #eff6ff; border-radius: 8px; min-width: 150px; }
+        .metric-value { font-size: 2em; font-weight: bold; color: #2563eb; }
+        .metric-label { color: #6b7280; font-size: 0.9em; }
+        .suggestion, .warning { padding: 10px; margin: 10px 0; border-left: 4px solid #f59e0b; background: #fffbeb; }
+        .warning { border-left-color: #ef4444; background: #fef2f2; }
+        .print-btn { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .print-btn:hover { background: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: center; margin-bottom: 20px;">
+        <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button class="print-btn" onclick="window.close()" style="background: #6b7280;">✕ Close</button>
+    </div>
+    
+    <h1>🛡️ Lynis Security Audit Report</h1>
+    <p><strong>Generated:</strong> ` + time.Now().Format("January 2, 2006 at 3:04 PM") + `</p>
+    <p><strong>Hostname:</strong> ` + fields["hostname"] + `</p>
+    
+    <h2>📊 Key Metrics</h2>
+    <div style="text-align: center;">
+        <div class="metric">
+            <div class="metric-label">Security Score</div>
+            <div class="metric-value">` + fields["hardening_index"] + `%</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Warnings</div>
+            <div class="metric-value">` + fmt.Sprintf("%d", len(completeData["warnings"].([]string))) + `</div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">Suggestions</div>
+            <div class="metric-value">` + fmt.Sprintf("%d", len(completeData["suggestions"].([]string))) + `</div>
+        </div>
+    </div>
+    
+    <h2>💻 System Information</h2>
+    <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Hostname</td><td>` + fields["hostname"] + `</td></tr>
+        <tr><td>Operating System</td><td>` + fields["os_fullname"] + `</td></tr>
+        <tr><td>OS Version</td><td>` + fields["os_version"] + `</td></tr>
+        <tr><td>Kernel Version</td><td>` + fields["os_kernel_version"] + `</td></tr>
+        <tr><td>Service Manager</td><td>` + fields["service_manager"] + `</td></tr>
+        <tr><td>Lynis Version</td><td>` + fields["lynis_version"] + `</td></tr>
+        <tr><td>Scan Date</td><td>` + fields["report_datetime_start"] + `</td></tr>
+        <tr><td>Uptime (days)</td><td>` + fields["uptime_in_days"] + `</td></tr>
+    </table>`
+		
+		// Add warnings
+		if warnings, ok := completeData["warnings"].([]string); ok && len(warnings) > 0 {
+			html += `<h2>⚠️ Warnings</h2>`
+			for i, warning := range warnings {
+				html += fmt.Sprintf(`<div class="warning"><strong>%d.</strong> %s</div>`, i+1, warning)
+			}
+		}
+		
+		// Add suggestions
+		if suggestions, ok := completeData["suggestions"].([]string); ok && len(suggestions) > 0 {
+			html += `<h2>💡 Suggestions</h2>`
+			for i, suggestion := range suggestions {
+				parts := strings.Split(suggestion, "|")
+				testID := parts[0]
+				description := parts[1]
+				if len(parts) > 1 {
+					html += fmt.Sprintf(`<div class="suggestion"><strong>%d. %s</strong><br>%s</div>`, i+1, testID, description)
+				} else {
+					html += fmt.Sprintf(`<div class="suggestion"><strong>%d.</strong> %s</div>`, i+1, suggestion)
+				}
+			}
+		}
+		
+		// Add network info
+		if netInterfaces, ok := completeData["network_interfaces"].([]string); ok && len(netInterfaces) > 0 {
+			html += `<h2>🌐 Network Configuration</h2>`
+			html += `<h3>Network Interfaces</h3><p>` + strings.Join(netInterfaces, ", ") + `</p>`
+		}
+		
+		if ipv4, ok := completeData["network_ipv4"].([]string); ok && len(ipv4) > 0 {
+			html += `<h3>IPv4 Addresses</h3><p>` + strings.Join(ipv4, ", ") + `</p>`
+		}
+		
+		html += `
+    <hr style="margin-top: 50px;">
+    <p style="text-align: center; color: #6b7280; font-size: 0.9em;">
+        Generated by UbuntuShield Security Monitoring Dashboard<br>
+        Data Source: /Users/apple/lynis-report.dat
+    </p>
+</body>
+</html>`
+		
+		fmt.Fprint(w, html)
+	} else {
+		// Export remote server as HTML
+		server, err := serverManager.GetServer(serverID)
+		if err != nil {
+			http.Error(w, "Server not found", http.StatusNotFound)
+			return
+		}
+		
+		metrics, _ := serverManager.GetLatestMetrics(serverID)
+		
+		html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Report - %s</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2563eb; }
+        table { width: 100%%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #2563eb; color: white; }
+        .print-btn { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <h1>Server Report: %s</h1>
+    <table>
+        <tr><th>Property</th><th>Value</th></tr>
+        <tr><td>Hostname</td><td>%s</td></tr>
+        <tr><td>IP Address</td><td>%s</td></tr>
+        <tr><td>Operating System</td><td>%s</td></tr>
+        <tr><td>Status</td><td>%s</td></tr>
+        <tr><td>Last Heartbeat</td><td>%s</td></tr>`, 
+			server.Hostname, server.Hostname, server.Hostname, server.IPAddress, 
+			server.OS, server.Status, server.LastHeartbeat.Format(time.RFC3339))
+		
+		if metrics != nil {
+			html += fmt.Sprintf(`
+        <tr><td>Hardening Index</td><td>%s%%</td></tr>
+        <tr><td>Warnings</td><td>%s</td></tr>
+        <tr><td>Tests Performed</td><td>%s</td></tr>`, 
+				metrics.HardeningIndex, metrics.Warnings, metrics.TestsPerformed)
+		}
+		
+		html += `
+    </table>
+</body>
+</html>`
+		
+		fmt.Fprint(w, html)
+	}
+}
+
 var (
 	historyManager *HistoryManager
 	auditScheduler *AuditScheduler
@@ -1701,6 +1990,11 @@ func main() {
 	http.HandleFunc("/api/servers", serversListHandler)
 	http.HandleFunc("/api/servers/", serversDetailHandler) // handles /api/servers/{id}
 	http.HandleFunc("/api/analysis", analysisAPIHandler)   // Local system analysis
+	
+	// Export endpoints
+	http.HandleFunc("/api/export/json", exportJSONHandler)
+	http.HandleFunc("/api/export/csv", exportCSVHandler)
+	http.HandleFunc("/api/export/pdf", exportPDFHandler)
 
 	port := "5179"
 	fmt.Printf("🚀 Linux Hardening Dashboard starting on http://localhost:%s\n", port)
